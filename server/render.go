@@ -33,6 +33,9 @@ var funcMap = template.FuncMap{
 		return participant != nil && participant.ID == other.ID
 	},
 	"mySubmission": func(sess *game.Session, participantID string) *game.Submission {
+		if sess.CurrentCard == nil {
+			return nil
+		}
 		for i, s := range sess.Submissions {
 			if s.CardID == sess.CurrentCard.ID && s.ParticipantID == participantID {
 				return &sess.Submissions[i]
@@ -42,6 +45,9 @@ var funcMap = template.FuncMap{
 	},
 	"blankCount": game.BlankCount,
 	"submittedCount": func(sess *game.Session) int {
+		if sess.CurrentCard == nil {
+			return 0
+		}
 		count := 0
 		seen := map[string]bool{}
 		for _, s := range sess.Submissions {
@@ -53,6 +59,9 @@ var funcMap = template.FuncMap{
 		return count
 	},
 	"votedCount": func(sess *game.Session) int {
+		if sess.CurrentCard == nil {
+			return 0
+		}
 		count := 0
 		seen := map[string]bool{}
 		for _, v := range sess.Votes {
@@ -66,6 +75,9 @@ var funcMap = template.FuncMap{
 		return count
 	},
 	"hasSubmitted": func(sess *game.Session, participantID string) bool {
+		if sess.CurrentCard == nil {
+			return false
+		}
 		for _, s := range sess.Submissions {
 			if s.ParticipantID == participantID && s.CardID == sess.CurrentCard.ID {
 				return true
@@ -74,6 +86,9 @@ var funcMap = template.FuncMap{
 		return false
 	},
 	"hasVoted": func(sess *game.Session, participantID string) bool {
+		if sess.CurrentCard == nil {
+			return false
+		}
 		for _, v := range sess.Votes {
 			for _, s := range sess.Submissions {
 				if s.ID == v.SubmissionID && s.CardID == sess.CurrentCard.ID && v.ParticipantID == participantID {
@@ -93,6 +108,9 @@ var funcMap = template.FuncMap{
 		return count
 	},
 	"currentSubmissions": func(sess *game.Session) []game.Submission {
+		if sess.CurrentCard == nil {
+			return nil
+		}
 		var subs []game.Submission
 		for _, s := range sess.Submissions {
 			if s.CardID == sess.CurrentCard.ID {
@@ -148,6 +166,9 @@ var funcMap = template.FuncMap{
 		return false
 	},
 	"votedFor": func(sess *game.Session, participantID string) string {
+		if sess.CurrentCard == nil {
+			return ""
+		}
 		for _, v := range sess.Votes {
 			for _, s := range sess.Submissions {
 				if s.ID == v.SubmissionID && s.CardID == sess.CurrentCard.ID && v.ParticipantID == participantID {
