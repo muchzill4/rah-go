@@ -203,6 +203,15 @@ func (s *Server) render(w http.ResponseWriter, name string, data map[string]any)
 	}
 }
 
+func (s *Server) renderNotFound(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	err := templates.ExecuteTemplate(w, "notfound.html", nil)
+	if err != nil {
+		slog.Error("template render failed", "err", err)
+	}
+}
+
 func (s *Server) renderPartial(name string, data map[string]any) string {
 	var buf bytes.Buffer
 	err := templates.ExecuteTemplate(&buf, name+".html", data)

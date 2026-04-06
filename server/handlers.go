@@ -69,7 +69,7 @@ func (s *Server) handleShowSession(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	sess, ok := s.getSession(code)
 	if !ok {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	sess, unlock, ok := s.lockSession(code)
 	if !ok {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 	defer unlock()
@@ -283,7 +283,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	sess, ok := s.getSession(code)
 	if !ok {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 
@@ -339,7 +339,7 @@ func (s *Server) requireParticipant(w http.ResponseWriter, r *http.Request) (*ga
 	code := r.PathValue("code")
 	sess, unlock, ok := s.lockSession(code)
 	if !ok {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return nil, nil, nil, false
 	}
 
