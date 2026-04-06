@@ -1,0 +1,159 @@
+{{$sess := .Session}}
+{{$p := .Participant}}
+
+{{if eq $sess.Status 0}}{{/* Lobby */}}
+  <div class="card" style="margin-top: 1.5rem; text-align: center;">
+    <p>Waiting for players to join...</p>
+    <p class="counter">{{len $sess.Participants}} player{{if ne (len $sess.Participants) 1}}s{{end}} in lobby</p>
+    {{if $p.Host}}
+      <div class="actions" style="justify-content: center;">
+        <button hx-post="/sessions/{{$sess.Code}}/draw" hx-swap="none">Draw First Card</button>
+      </div>
+    {{else}}
+      <p class="meta">Waiting for the host to start...</p>
+    {{end}}
+  </div>
+
+{{else if eq $sess.Status 1}}{{/* Submitting */}}
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-text">{{$sess.CurrentCard.Text}}</div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0;">
+      <span class="counter">{{submittedCount $sess}} / {{len $sess.Participants}} submitted</span>
+      <span class="timer"
+        x-data="{ deadline: new Date('{{$sess.SubmissionDeadline.Format `2006-01-02T15:04:05Z07:00`}}'), remaining: 0, expired: false }"
+        x-init="
+          let tick = () => {
+            remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+            expired = remaining <= 0;
+          };
+          tick();
+          setInterval(tick, 1000);
+        "
+        :class="{ expired: expired }"
+        x-text="expired ? 'Time\u0027s up!' : Math.floor(remaining/60) + ':' + String(remaining%60).padStart(2,'0')">
+      </span>
+    </div>
+
+    {{if hasSubmitted $sess $p.ID}}
+      <p style="color: #4ade80;">&#x2705; Submitted</p>
+    {{else}}
+      <form hx-post="/sessions/{{$sess.Code}}/submissions" hx-swap="none"
+        x-data="{ blanks: Array({{blankCount $sess.CurrentCard.Text}}).fill(''), get allFilled() { return this.blanks.every(b => b.trim() !== '') } }">
+        <div style="margin: 1rem 0;">
+          <template x-for="(_, i) in blanks" :key="i">
+            <div style="margin-bottom: 0.5rem;">
+              <span class="meta" x-text="'Blank ' + (i+1)"></span>
+              <input type="text" name="text" class="blank-input" style="width: 100%; border: 1px solid #333; padding: 0.5rem; border-radius: 4px; background: #0f3460;"
+                x-model="blanks[i]"
+                @keydown.enter.prevent="if (allFilled) $el.closest('form').requestSubmit()">
+            </div>
+          </template>
+        </div>
+        <button type="submit" :disabled="!allFilled">Submit Answer</button>
+      </form>
+    {{end}}
+
+    {{if $p.Host}}
+      <div class="actions">
+        <button hx-post="/sessions/{{$sess.Code}}/advance" hx-swap="none">Close Submissions</button>
+        <button class="btn-secondary" hx-post="/sessions/{{$sess.Code}}/skip" hx-swap="none" hx-confirm="Skip this card?">Skip Card</button>
+      </div>
+    {{end}}
+  </div>
+
+{{else if eq $sess.Status 2}}{{/* Voting */}}
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-text" style="margin-bottom: 0.5rem;">{{$sess.CurrentCard.Text}}</div>
+    <span class="counter">{{votedCount $sess}} / {{len $sess.Participants}} voted</span>
+
+    <div class="submissions-grid">
+      {{$votedFor := votedFor $sess $p.ID}}
+      {{range currentSubmissions $sess}}
+        <div class="submission-card {{if eq .ID $votedFor}}voted{{end}}">
+          <div class="card-text">{{fillInBlank $sess.CurrentCard.Text .Text}}</div>
+          <span class="vote-count">{{voteCount $sess .ID}}</span>
+          {{if and (not (hasVoted $sess $p.ID)) (ne $votedFor .ID)}}
+            <button hx-post="/sessions/{{$sess.Code}}/votes" hx-vals='{"submission_id":"{{.ID}}"}' hx-swap="none"
+              style="margin-top: 0.75rem;">Vote</button>
+          {{end}}
+        </div>
+      {{end}}
+    </div>
+
+    {{if $p.Host}}
+      <div class="actions">
+        <button hx-post="/sessions/{{$sess.Code}}/advance" hx-swap="none">Close Voting</button>
+      </div>
+    {{end}}
+  </div>
+
+{{else if eq $sess.Status 3}}{{/* Discussing */}}
+  <div style="margin-top: 1.5rem;">
+    <div class="card">
+      <div class="card-text" style="margin-bottom: 1rem;">{{$sess.CurrentCard.Text}}</div>
+    </div>
+
+    {{$winner := winningSubmission $sess}}
+    {{$tied := tiedSubmissions $sess}}
+
+    {{if $winner}}
+      <div class="winner-card">
+        <div class="trophy">&#x1f3c6;</div>
+        <div class="card-text">{{fillInBlank $sess.CurrentCard.Text $winner.Text}}</div>
+        <div class="winner-name">{{participantName $sess $winner.ParticipantID}}</div>
+      </div>
+    {{else if $tied}}
+      {{if $p.Host}}
+        <p>It's a tie! Pick the winner:</p>
+        <div class="submissions-grid">
+          {{range $tied}}
+            <div class="submission-card">
+              <div class="card-text">{{fillInBlank $sess.CurrentCard.Text .Text}}</div>
+              <span class="vote-count">{{voteCount $sess .ID}}</span>
+              <button hx-post="/sessions/{{$sess.Code}}/winners" hx-vals='{"submission_id":"{{.ID}}"}' hx-swap="none"
+                style="margin-top: 0.75rem;">Pick This One</button>
+            </div>
+          {{end}}
+        </div>
+      {{else}}
+        <p style="text-align: center; color: #888;">Waiting for the host to break the tie...</p>
+      {{end}}
+    {{else}}
+      <p style="text-align: center; color: #888;">No votes were cast. No winner this round.</p>
+    {{end}}
+
+    {{if $p.Host}}
+      <div class="actions" style="margin-top: 1.5rem;">
+        {{if gt (undrawnCount $sess) 0}}
+          <button hx-post="/sessions/{{$sess.Code}}/draw" hx-swap="none">Draw Next Card</button>
+        {{end}}
+        <button class="btn-secondary" hx-post="/sessions/{{$sess.Code}}/summary" hx-swap="none" hx-confirm="End the session?">End Session</button>
+      </div>
+    {{end}}
+  </div>
+
+{{else if eq $sess.Status 4}}{{/* Finished */}}
+  <div style="margin-top: 1.5rem;">
+    <h2 style="text-align: center;">Session Complete</h2>
+    <div class="summary-grid">
+      {{range drawnCards $sess}}
+        <div class="summary-item">
+          <div class="label">{{.Text}}</div>
+          {{$w := winnerForCard $sess .ID}}
+          {{if $w}}
+            <div class="card-text">{{fillInBlank .Text $w.Text}}</div>
+            <div class="winner-name">&#x1f3c6; {{participantName $sess $w.ParticipantID}}</div>
+          {{else if hasSubmissions $sess .ID}}
+            <div style="color: #888;">No winner selected</div>
+          {{else}}
+            <div style="color: #888;">Skipped</div>
+          {{end}}
+        </div>
+      {{end}}
+    </div>
+    <div style="text-align: center; margin-top: 2rem;">
+      <a href="/" class="btn">New Session</a>
+    </div>
+  </div>
+{{end}}
