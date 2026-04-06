@@ -718,3 +718,12 @@ body > .credits {
 }
 
 .credits a:hover { color: var(--near-black); }
+
+.credits__logo {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 .2rem;
+  opacity: .6;
+}
+
+.credits a:hover .credits__logo { opacity: 1; }
