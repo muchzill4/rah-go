@@ -17,6 +17,10 @@ func (b *Broker) Subscribe(participantID string) chan string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if old, ok := b.clients[participantID]; ok {
+		close(old)
+	}
+
 	ch := make(chan string, 16)
 	b.clients[participantID] = ch
 	return ch
