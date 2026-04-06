@@ -50,7 +50,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess, host := game.NewSession(hostName, timer, cardTexts)
-	s.putSession(&sess)
+	s.store.Put(&sess)
 	slog.Info("session created", "code", sess.Code, "host", host.Name, "cards", len(cardTexts))
 
 	http.SetCookie(w, &http.Cookie{
@@ -67,7 +67,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleShowSession(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
-	sess, ok := s.getSession(code)
+	sess, ok := s.store.Get(code)
 	if !ok {
 		s.renderNotFound(w)
 		return
@@ -83,7 +83,7 @@ func (s *Server) handleShowSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
-	sess, unlock, ok := s.lockSession(code)
+	sess, unlock, ok := s.store.Lock(code)
 	if !ok {
 		s.renderNotFound(w)
 		return
@@ -102,7 +102,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("participant joined", "code", code, "name", name)
 
 	http.SetCookie(w, &http.Cookie{
@@ -130,7 +130,7 @@ func (s *Server) handleDraw(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("card drawn", "code", sess.Code, "remaining", len(updated.Cards)-len(updated.DrawnCardIDs))
 
 	s.broadcastGameUpdate(&updated)
@@ -158,7 +158,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Debug("submission received", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
@@ -190,7 +190,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("phase advanced", "code", sess.Code, "status", updated.Status)
 
 	s.broadcastGameUpdate(&updated)
@@ -212,7 +212,7 @@ func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Debug("vote cast", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
@@ -234,7 +234,7 @@ func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("winner picked", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -253,7 +253,7 @@ func (s *Server) handleSkip(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("card skipped", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -272,7 +272,7 @@ func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSessionLocked(&updated)
+	s.store.PutLocked(&updated)
 	slog.Info("session finished", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -281,7 +281,7 @@ func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
-	sess, ok := s.getSession(code)
+	sess, ok := s.store.Get(code)
 	if !ok {
 		s.renderNotFound(w)
 		return
@@ -337,7 +337,7 @@ func (s *Server) broadcastGameUpdate(sess *game.Session) {
 
 func (s *Server) requireParticipant(w http.ResponseWriter, r *http.Request) (*game.Session, *game.Participant, func(), bool) {
 	code := r.PathValue("code")
-	sess, unlock, ok := s.lockSession(code)
+	sess, unlock, ok := s.store.Lock(code)
 	if !ok {
 		s.renderNotFound(w)
 		return nil, nil, nil, false
