@@ -26,12 +26,15 @@ func (b *Broker) Subscribe(participantID string) chan string {
 	return ch
 }
 
-func (b *Broker) Unsubscribe(participantID string) {
+// Unsubscribe removes the channel only if it matches the one currently registered.
+// This prevents a reconnecting client's new channel from being closed by
+// the old connection's deferred cleanup.
+func (b *Broker) Unsubscribe(participantID string, ch chan string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if ch, ok := b.clients[participantID]; ok {
-		close(ch)
+	if current, ok := b.clients[participantID]; ok && current == ch {
+		close(current)
 		delete(b.clients, participantID)
 	}
 }

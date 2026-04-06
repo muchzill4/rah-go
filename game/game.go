@@ -92,7 +92,7 @@ func NewSession(hostName string, timerSeconds int, cardTexts []string) (Session,
 	}
 
 	host := Participant{
-		ID:    "p-1",
+		ID:    generateToken(),
 		Name:  hostName,
 		Token: generateToken(),
 		Host:  true,
@@ -117,7 +117,7 @@ func Join(s Session, name string) (Session, Participant, error) {
 	}
 
 	p := Participant{
-		ID:    fmt.Sprintf("p-%d", len(s.Participants)+1),
+		ID:    generateToken(),
 		Name:  name,
 		Token: generateToken(),
 	}

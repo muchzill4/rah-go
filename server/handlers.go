@@ -329,7 +329,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	ch := s.broker.Subscribe(participant.ID)
-	defer s.broker.Unsubscribe(participant.ID)
+	defer s.broker.Unsubscribe(participant.ID, ch)
 	slog.Debug("sse connected", "code", code, "participant", participant.Name)
 
 	for {
