@@ -212,7 +212,7 @@ func (p *player) pickWinner(code, submissionID string)     { p.t.Helper(); p.pos
 func (p *player) skip(code string)                         { p.t.Helper(); p.postOK("/sessions/"+code+"/skip", nil) }
 func (p *player) finish(code string)                       { p.t.Helper(); p.postOK("/sessions/"+code+"/summary", nil) }
 
-var codeRe = regexp.MustCompile(`class="code"[^>]*>([A-F0-9]{6})<`)
+var codeRe = regexp.MustCompile(`class="session__code"[^>]*>(?:[^<]*<strong>)([A-F0-9]{6})</strong>`)
 
 func extractCode(t *testing.T, body string) string {
 	t.Helper()
@@ -266,7 +266,7 @@ func TestThreePlayersCompleteRoundWithClearWinner(t *testing.T) {
 	assertContains(t, body, "Alice")
 	assertContains(t, body, "Bob")
 	assertContains(t, body, "Carol")
-	assertContains(t, body, "Waiting for players to join")
+	assertContains(t, body, "Waiting for everyone to join")
 
 	// Non-host sees waiting message
 	body = bob.viewSession(code)
@@ -283,9 +283,6 @@ func TestThreePlayersCompleteRoundWithClearWinner(t *testing.T) {
 	alice.submit(code, "Too many standups")
 	bob.submit(code, "Insufficient coffee")
 	carol.submit(code, "The retrospective itself")
-
-	body = alice.viewSession(code)
-	assertContains(t, body, "3 / 3 submitted")
 
 	// Advance to voting
 	alice.advance(code)
@@ -337,13 +334,13 @@ func TestHostBreaksTie(t *testing.T) {
 	// All voted -> auto-advanced to discussing (tie)
 	body = alice.viewSession(code)
 	assertContains(t, body, "tie")
-	assertContains(t, body, "Pick the winner")
+	assertContains(t, body, "pick the winner")
 
 	// Bob sees tie but no pick button
 	body = bob.viewSession(code)
 	assertContains(t, body, "tie")
-	assertContains(t, body, "Waiting for the host to break the tie")
-	assertNotContains(t, body, "Pick This One")
+	assertContains(t, body, "Waiting for the host to pick the winner")
+	assertNotContains(t, body, "Pick this one")
 
 	// Host picks Alice's answer
 	aliceBody := alice.viewSession(code)
@@ -378,7 +375,7 @@ func TestAutoAdvanceWhenAllVoted(t *testing.T) {
 	bob.vote(code, subIDs[0])
 
 	body = alice.viewSession(code)
-	assertContains(t, body, "winner-card")
+	assertContains(t, body, "Discussion time")
 	assertContains(t, body, "&#x1f3c6;") // trophy
 }
 
@@ -457,7 +454,7 @@ func TestHostCanEndSessionEarly(t *testing.T) {
 	alice.finish(code)
 
 	body = alice.viewSession(code)
-	assertContains(t, body, "Session Complete")
+	assertContains(t, body, "Session summary")
 	assertContains(t, body, "Blaming the process")
 }
 
@@ -487,7 +484,7 @@ func TestSessionFinishesWhenAllCardsDrawn(t *testing.T) {
 	alice.draw(code)
 
 	body = alice.viewSession(code)
-	assertContains(t, body, "Session Complete")
+	assertContains(t, body, "Session summary")
 }
 
 func TestPlayersSeeLobbyParticipants(t *testing.T) {
@@ -596,7 +593,7 @@ func TestSkipShowsAsSkippedInSummary(t *testing.T) {
 	alice.finish(code)
 
 	body = alice.viewSession(code)
-	assertContains(t, body, "Session Complete")
+	assertContains(t, body, "Session summary")
 	assertContains(t, body, "Skipped")
 	assertContains(t, body, "Something good")
 }

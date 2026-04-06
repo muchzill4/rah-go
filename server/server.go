@@ -1,6 +1,8 @@
 package server
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"sync"
@@ -8,6 +10,9 @@ import (
 
 	"github.com/muchzill4/rah-go/game"
 )
+
+//go:embed static/*
+var staticFS embed.FS
 
 const sessionMaxAge = 24 * time.Hour
 
@@ -34,6 +39,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) routes() {
+	staticContent, _ := fs.Sub(staticFS, "static")
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
 	s.mux.HandleFunc("GET /", s.handleHome)
 	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
 	s.mux.HandleFunc("GET /sessions/{code}", s.handleShowSession)

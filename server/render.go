@@ -19,9 +19,26 @@ var funcMap = template.FuncMap{
 		answers := strings.Split(answer, "|||")
 		result := cardText
 		for _, a := range answers {
-			result = strings.Replace(result, game.BlankPlaceholder, "<strong>"+template.HTMLEscapeString(a)+"</strong>", 1)
+			result = strings.Replace(result, game.BlankPlaceholder, `<span class="filled-blank">`+template.HTMLEscapeString(a)+"</span>", 1)
 		}
 		return template.HTML(result)
+	},
+	"cardSegments": func(text string) []string {
+		return strings.Split(text, game.BlankPlaceholder)
+	},
+	"sub": func(a, b int) int {
+		return a - b
+	},
+	"isCurrentParticipant": func(participant *game.Participant, other game.Participant) bool {
+		return participant != nil && participant.ID == other.ID
+	},
+	"mySubmission": func(sess *game.Session, participantID string) *game.Submission {
+		for i, s := range sess.Submissions {
+			if s.CardID == sess.CurrentCard.ID && s.ParticipantID == participantID {
+				return &sess.Submissions[i]
+			}
+		}
+		return nil
 	},
 	"blankCount": game.BlankCount,
 	"submittedCount": func(sess *game.Session) int {

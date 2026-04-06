@@ -2,59 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Rah">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Retros Against Humanity</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="/static/rah.css">
   <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 1rem; background: #1a1a2e; color: #eee; }
-    h1 { text-align: center; font-size: 2rem; margin-bottom: 0.25rem; }
-    .subtitle { text-align: center; color: #888; margin-bottom: 2rem; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-    .card { background: #16213e; border-radius: 8px; padding: 1.5rem; }
-    .card h2 { margin-top: 0; font-size: 1.25rem; }
-    label { display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem; }
-    input, textarea, select { width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 1rem; margin-bottom: 1rem; }
-    textarea { min-height: 200px; font-family: inherit; resize: vertical; }
-    button { background: #e94560; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-size: 1rem; cursor: pointer; width: 100%; }
-    button:hover { background: #c73e54; }
-    .join-card input { text-transform: uppercase; font-size: 1.5rem; text-align: center; letter-spacing: 0.3em; }
-    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-  </style>
 </head>
 <body>
-  <h1>Retros Against Humanity</h1>
-  <p class="subtitle">A retrospective game for teams</p>
+  <header class="site-header">
+    <a href="/" class="site-header__link">
+      <h1 class="site-header__title">Retros<br>Against<br>Humanity</h1>
+    </a>
+  </header>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Create Session</h2>
-      <form method="POST" action="/sessions">
-        <label for="host_name">Your Name</label>
-        <input type="text" id="host_name" name="host_name" required placeholder="Enter your name">
+  <div class="landing">
+    <div class="landing__cards">
+      <section class="card-panel">
+        <h2 class="card-panel__title">Create a session</h2>
+        <form method="POST" action="/sessions" class="form"
+          x-data="{
+            validateCards(e) {
+              const textarea = e.target.querySelector('textarea');
+              const lines = textarea.value.split('\n').filter(l => l.trim());
+              const valid = lines.some(l => l.includes('_') || l.includes('{blank}'));
+              if (!valid) { e.preventDefault(); alert('At least one card must contain _ or {blank}'); }
+            }
+          }"
+          @submit="validateCards($event)">
+          <div class="form__field">
+            <label for="host_name" class="form__label">Your name</label>
+            <input type="text" id="host_name" name="host_name" placeholder="Enter your name" class="form__input" required>
+          </div>
+          <div class="form__field">
+            <label for="timer" class="form__label">Submission timer (seconds)</label>
+            <input type="number" id="timer" name="timer" value="60" min="10" max="300" class="form__input">
+          </div>
+          <div class="form__field">
+            <label for="cards" class="form__label">Cards</label>
+            <p class="form__hint">One card per line. Use _ or {blank} for the blank.</p>
+            <textarea id="cards" name="cards" class="form__input form__input--textarea" rows="10">{{.DefaultCards}}</textarea>
+          </div>
+          <button type="submit" class="btn btn--primary">Create session</button>
+        </form>
+      </section>
 
-        <label for="timer">Submission Timer (seconds)</label>
-        <input type="number" id="timer" name="timer" value="60" min="10" max="300">
+      <div class="landing__divider">or</div>
 
-        <label for="cards">Prompt Cards (one per line, use {blank} for blanks)</label>
-        <textarea id="cards" name="cards">{{.DefaultCards}}</textarea>
-
-        <button type="submit">Create Session</button>
-      </form>
-    </div>
-
-    <div class="card join-card" x-data="{ code: '' }">
-      <h2>Join Session</h2>
-      <label for="code">Session Code</label>
-      <input type="text" id="code" maxlength="6" placeholder="ABC123"
-        x-model="code"
-        @input="code = code.toUpperCase()">
-      <button @click="if (code.length === 6) window.location.href = '/sessions/' + code"
-        :disabled="code.length !== 6">
-        Join
-      </button>
+      <section class="card-panel" x-data="{ code: '' }">
+        <h2 class="card-panel__title">Join a session</h2>
+        <p class="card-panel__hint">Ask your host for the session code</p>
+        <form class="form" @submit.prevent="if (code.length === 6) window.location.href = '/sessions/' + code">
+          <div class="form__field">
+            <label for="code" class="form__label">Session code</label>
+            <input type="text" id="code" maxlength="6" placeholder="ABC123"
+              class="form__input form__input--code"
+              x-model="code"
+              @input="code = code.toUpperCase()">
+          </div>
+          <button type="submit" class="btn btn--secondary" :disabled="code.length !== 6">Join session</button>
+        </form>
+      </section>
     </div>
   </div>
+
+  <footer class="credits">
+    Inspired by
+    <a href="https://www.cardsagainsthumanity.com">Cards Against Humanity</a>
+    and
+    <a href="https://www.boxuk.com/insight/retros-against-humanity/">Box UK</a>
+  </footer>
 </body>
 </html>

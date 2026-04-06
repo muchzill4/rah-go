@@ -2,76 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RAH - {{.Session.Code}}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Rah">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>RAH &mdash; {{.Session.Code}}</title>
+  <link rel="stylesheet" href="/static/rah.css">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
   <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 1rem; background: #1a1a2e; color: #eee; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
-    .header h1 { font-size: 1.25rem; margin: 0; }
-    .code { font-size: 1.5rem; font-weight: bold; letter-spacing: 0.2em; color: #e94560; }
-    .meta { color: #888; font-size: 0.9rem; }
-    .card { background: #16213e; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
-    .card-text { font-size: 1.25rem; line-height: 1.6; }
-    .card-text strong { color: #e94560; }
-    .participants { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .badge { background: #0f3460; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.85rem; }
-    button, .btn { background: #e94560; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-size: 1rem; cursor: pointer; display: inline-block; text-decoration: none; }
-    button:hover, .btn:hover { background: #c73e54; }
-    button:disabled { background: #555; cursor: not-allowed; }
-    .btn-secondary { background: #0f3460; }
-    .btn-secondary:hover { background: #1a4a8a; }
-    .submissions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0; }
-    .submission-card { background: #0f3460; border-radius: 8px; padding: 1rem; position: relative; }
-    .submission-card.voted { border: 2px solid #e94560; }
-    .vote-count { position: absolute; top: 0.5rem; right: 0.5rem; background: #e94560; border-radius: 99px; padding: 0.15rem 0.5rem; font-size: 0.8rem; }
-    .winner-card { background: #0f3460; border: 2px solid gold; border-radius: 8px; padding: 1.5rem; text-align: center; }
-    .winner-card .trophy { font-size: 2rem; }
-    .winner-name { color: gold; font-weight: bold; }
-    .counter { color: #888; font-size: 0.9rem; margin: 0.5rem 0; }
-    .timer { font-size: 1.25rem; font-weight: bold; color: #e94560; }
-    .timer.expired { color: #888; }
-    input[type="text"] { padding: 0.5rem; border-radius: 4px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 1rem; }
-    .blank-input { border-bottom: 2px solid #e94560; background: transparent; border-top: none; border-left: none; border-right: none; color: #e94560; font-size: inherit; font-family: inherit; min-width: 120px; padding: 0 0.25rem; outline: none; }
-    .blank-input:focus { border-bottom-color: gold; }
-    .actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
-    .summary-grid { display: grid; gap: 1rem; margin: 1rem 0; }
-    .summary-item { background: #0f3460; border-radius: 8px; padding: 1rem; }
-    .summary-item .label { color: #888; font-size: 0.85rem; margin-bottom: 0.25rem; }
-    .join-form { max-width: 300px; margin: 2rem auto; text-align: center; }
-    .join-form input { width: 100%; margin-bottom: 1rem; }
-  </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Retros Against Humanity</h1>
-    <div>
-      <span class="code" x-data @click="navigator.clipboard.writeText(window.location.href)" style="cursor:pointer" title="Click to copy link">{{.Session.Code}}</span>
-      <div class="meta">{{undrawnCount .Session}} cards remaining</div>
+  <header class="site-header">
+    <a href="/" class="site-header__link">
+      <h1 class="site-header__title">Retros<br>Against<br>Humanity</h1>
+    </a>
+    <div class="site-header__right">
+      <div class="session__meta">
+        <span class="session__code">
+          Code: <strong>{{.Session.Code}}</strong>
+        </span>
+        <span class="session__cards-remaining">
+          {{undrawnCount .Session}} cards remaining
+        </span>
+      </div>
+      <div class="session__participants">
+        <p class="session__participants-heading">Participants ({{len .Session.Participants}})</p>
+        {{range .Session.Participants}}
+          <div class="participant-badge {{if isCurrentParticipant $.Participant .}}participant-badge--you{{end}}">
+            <span>{{if .Host}}&#x1f451;{{else}}&#x1f9d1;{{end}}</span>
+            <span>{{.Name}}</span>
+          </div>
+        {{end}}
+      </div>
     </div>
-  </div>
+  </header>
 
-  <div class="participants">
-    {{range .Session.Participants}}
-      <span class="badge">{{if .Host}}&#x1f451;{{end}} {{.Name}}</span>
+  <div class="session">
+    <main id="game" class="session__game">
+      {{if .Participant}}
+        <div hx-ext="sse" sse-connect="/sessions/{{.Session.Code}}/events" sse-swap="game-update" hx-swap="innerHTML">
+          {{template "game.html" .}}
+        </div>
+      {{else}}
+        <div class="panel panel--centered">
+          <h2 class="panel__title">Join this session</h2>
+          <form method="POST" action="/sessions/{{.Session.Code}}/participants" class="form">
+            <div class="form__field">
+              <label for="name" class="form__label">Your name</label>
+              <input type="text" id="name" name="name" placeholder="Enter your name" class="form__input" required autofocus>
+            </div>
+            <button type="submit" class="btn btn--primary">Join</button>
+          </form>
+        </div>
+      {{end}}
+    </main>
+
+    {{if and .Participant .Participant.Host (ne .Session.Status 4)}}
+      <div class="session__footer">
+        <button class="btn btn--danger btn--small"
+          hx-post="/sessions/{{.Session.Code}}/summary" hx-swap="none"
+          hx-confirm="End the session and show the summary?">Show summary &#x1f3c1;</button>
+      </div>
     {{end}}
   </div>
 
-  {{if .Participant}}
-    <div id="game" hx-ext="sse" sse-connect="/sessions/{{.Session.Code}}/events" sse-swap="game-update" hx-swap="innerHTML">
-      {{template "game.html" .}}
-    </div>
-  {{else}}
-    <div class="join-form">
-      <h2>Join this session</h2>
-      <form method="POST" action="/sessions/{{.Session.Code}}/participants">
-        <input type="text" name="name" placeholder="Your name" required>
-        <button type="submit">Join</button>
-      </form>
-    </div>
-  {{end}}
+  <footer class="credits">
+    Inspired by
+    <a href="https://www.cardsagainsthumanity.com">Cards Against Humanity</a>
+    and
+    <a href="https://www.boxuk.com/insight/retros-against-humanity/">Box UK</a>
+  </footer>
 </body>
 </html>
