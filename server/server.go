@@ -3,7 +3,7 @@ package server
 import (
 	"embed"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -21,6 +21,7 @@ type Server struct {
 	sessions map[string]*game.Session
 	broker   *Broker
 	mux      *http.ServeMux
+	handler  http.Handler
 }
 
 func New() *Server {
@@ -30,12 +31,13 @@ func New() *Server {
 		mux:      http.NewServeMux(),
 	}
 	s.routes()
+	s.handler = requestLogger(s.mux)
 	go s.cleanupLoop()
 	return s
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mux.ServeHTTP(w, r)
+	s.handler.ServeHTTP(w, r)
 }
 
 func (s *Server) routes() {
@@ -84,7 +86,7 @@ func (s *Server) cleanupLoop() {
 		s.mu.Unlock()
 
 		if removed := before - after; removed > 0 {
-			log.Printf("cleaned up %d expired session(s)", removed)
+			slog.Info("cleaned up expired sessions", "count", removed)
 		}
 	}
 }

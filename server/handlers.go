@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 	sess, host := game.NewSession(hostName, timer, cardTexts)
 	s.putSession(&sess)
+	slog.Info("session created", "code", sess.Code, "host", host.Name, "cards", len(cardTexts))
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "participant_token",
@@ -100,6 +102,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("participant joined", "code", code, "name", name)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "participant_token",
@@ -126,6 +129,7 @@ func (s *Server) handleDraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("card drawn", "code", sess.Code, "remaining", len(updated.Cards)-len(updated.DrawnCardIDs))
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -152,6 +156,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Debug("submission received", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -181,6 +186,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("phase advanced", "code", sess.Code, "status", updated.Status)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -201,6 +207,7 @@ func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Debug("vote cast", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -221,6 +228,7 @@ func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("winner picked", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -238,6 +246,7 @@ func (s *Server) handleSkip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("card skipped", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -255,6 +264,7 @@ func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.putSession(&updated)
+	slog.Info("session finished", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
 	w.WriteHeader(http.StatusOK)
@@ -286,6 +296,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	ch := s.broker.Subscribe(participant.ID)
 	defer s.broker.Unsubscribe(participant.ID)
+	slog.Debug("sse connected", "code", code, "participant", participant.Name)
 
 	for {
 		select {
