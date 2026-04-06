@@ -96,7 +96,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, participant, err := game.Join(*sess, name)
+	updated, participant, err := game.Join(sess.Clone(), name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -123,7 +123,7 @@ func (s *Server) handleDraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := game.DrawCard(*sess, participant.ID)
+	updated, err := game.DrawCard(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -150,7 +150,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := game.Submit(*sess, participant.ID, text)
+	updated, err := game.Submit(sess.Clone(), participant.ID, text)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -171,11 +171,12 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
 	var updated game.Session
 	var err error
 
+	clone := sess.Clone()
 	switch sess.Status {
 	case game.Submitting:
-		updated, err = game.AdvanceToVoting(*sess, participant.ID)
+		updated, err = game.AdvanceToVoting(clone, participant.ID)
 	case game.Voting:
-		updated, err = game.AdvanceToDiscussing(*sess, participant.ID)
+		updated, err = game.AdvanceToDiscussing(clone, participant.ID)
 	default:
 		http.Error(w, "cannot advance from this state", http.StatusUnprocessableEntity)
 		return
@@ -201,7 +202,7 @@ func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	submissionID := r.FormValue("submission_id")
 
-	updated, err := game.CastVote(*sess, participant.ID, submissionID)
+	updated, err := game.CastVote(sess.Clone(), participant.ID, submissionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -222,7 +223,7 @@ func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	submissionID := r.FormValue("submission_id")
 
-	updated, err := game.PickWinner(*sess, participant.ID, submissionID)
+	updated, err := game.PickWinner(sess.Clone(), participant.ID, submissionID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -240,7 +241,7 @@ func (s *Server) handleSkip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := game.SkipCard(*sess, participant.ID)
+	updated, err := game.SkipCard(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
@@ -258,7 +259,7 @@ func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := game.Finish(*sess, participant.ID)
+	updated, err := game.Finish(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return

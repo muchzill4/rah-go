@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 	"time"
 )
@@ -63,6 +64,22 @@ type Session struct {
 	Submissions            []Submission
 	Votes                  []Vote
 	CreatedAt              time.Time
+}
+
+func (s Session) Clone() Session {
+	s.Cards = append([]Card(nil), s.Cards...)
+	s.Participants = append([]Participant(nil), s.Participants...)
+	s.Submissions = append([]Submission(nil), s.Submissions...)
+	s.Votes = append([]Vote(nil), s.Votes...)
+
+	s.DrawnCardIDs = maps.Clone(s.DrawnCardIDs)
+
+	if s.CurrentCard != nil {
+		card := *s.CurrentCard
+		s.CurrentCard = &card
+	}
+
+	return s
 }
 
 func NewSession(hostName string, timerSeconds int, cardTexts []string) (Session, Participant) {
