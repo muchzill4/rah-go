@@ -9,7 +9,6 @@
   <title>Retros Against Humanity</title>
   <link rel="stylesheet" href="/static/rah.css">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
   <meta name="htmx-config" content='{"responseHandling": [{"code":"422", "swap": true},{"code":"204", "swap": false},{"code":"[23]..", "swap": true},{"code":"[45]..", "swap": false, "error":true},{"code":"...", "swap": false}]}'>
 </head>
 <body>
@@ -45,18 +44,17 @@
 
       <div class="landing__divider">or</div>
 
-      <section class="card-panel" x-data="{ code: '' }">
+      <section class="card-panel">
         <h2 class="card-panel__title">Join a session</h2>
         <p class="card-panel__hint">Ask your host for the session code</p>
-        <form class="form" @submit.prevent="if (code.length === 6) window.location.href = '/sessions/' + code">
+        <form method="GET" action="/join" class="form">
           <div class="form__field">
             <label for="code" class="form__label">Session code</label>
-            <input type="text" id="code" maxlength="6" placeholder="ABC123"
+            <input type="text" id="code" name="code" maxlength="6" placeholder="ABC123"
               class="form__input form__input--code"
-              x-model="code"
-              @input="code = code.toUpperCase()">
+              required pattern="[A-Za-z0-9]{6}">
           </div>
-          <button type="submit" class="btn btn--secondary" :disabled="code.length !== 6">Join session</button>
+          <button type="submit" class="btn btn--secondary">Join session</button>
         </form>
       </section>
     </div>

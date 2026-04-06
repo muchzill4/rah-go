@@ -16,6 +16,15 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleJoinRedirect(w http.ResponseWriter, r *http.Request) {
+	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("code")))
+	if len(code) != 6 {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/sessions/"+code, http.StatusSeeOther)
+}
+
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	htmx := r.Header.Get("HX-Request") == "true"

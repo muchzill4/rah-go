@@ -37,6 +37,7 @@ func (s *Server) routes() {
 	staticContent, _ := fs.Sub(staticFS, "static")
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticContent))))
 	s.mux.HandleFunc("GET /", s.handleHome)
+	s.mux.HandleFunc("GET /join", s.handleJoinRedirect)
 	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
 	s.mux.HandleFunc("GET /sessions/{code}", s.handleShowSession)
 	s.mux.HandleFunc("POST /sessions/{code}/participants", s.handleJoin)
