@@ -62,6 +62,7 @@ type Session struct {
 	Participants           []Participant
 	Submissions            []Submission
 	Votes                  []Vote
+	CreatedAt              time.Time
 }
 
 func NewSession(hostName string, timerSeconds int, cardTexts []string) (Session, Participant) {
@@ -87,6 +88,7 @@ func NewSession(hostName string, timerSeconds int, cardTexts []string) (Session,
 		Cards:                  cards,
 		DrawnCardIDs:           make(map[string]bool),
 		Participants:           []Participant{host},
+		CreatedAt:              time.Now(),
 	}
 
 	return s, host

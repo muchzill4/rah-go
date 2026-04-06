@@ -1,11 +1,15 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/muchzill4/rah-go/game"
 )
+
+const sessionMaxAge = 24 * time.Hour
 
 type Server struct {
 	mu       sync.RWMutex
@@ -21,6 +25,7 @@ func New() *Server {
 		mux:      http.NewServeMux(),
 	}
 	s.routes()
+	go s.cleanupLoop()
 	return s
 }
 
@@ -54,6 +59,27 @@ func (s *Server) putSession(sess *game.Session) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sessions[sess.Code] = sess
+}
+
+func (s *Server) cleanupLoop() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.mu.Lock()
+		before := len(s.sessions)
+		for code, sess := range s.sessions {
+			if time.Since(sess.CreatedAt) > sessionMaxAge {
+				delete(s.sessions, code)
+			}
+		}
+		after := len(s.sessions)
+		s.mu.Unlock()
+
+		if removed := before - after; removed > 0 {
+			log.Printf("cleaned up %d expired session(s)", removed)
+		}
+	}
 }
 
 func (s *Server) participantFromCookie(r *http.Request, sess *game.Session) *game.Participant {
