@@ -284,6 +284,13 @@ func TestAdvanceToDiscussingClearWinner(t *testing.T) {
 	if len(tied) != 0 {
 		t.Fatalf("want no tie, got %d tied", len(tied))
 	}
+
+	// Winner submission should be marked
+	for _, sub := range s.Submissions {
+		if sub.ID == bobSub.ID && !sub.Winner {
+			t.Fatal("want winning submission marked as Winner")
+		}
+	}
 }
 
 func TestAdvanceToDiscussingTie(t *testing.T) {
