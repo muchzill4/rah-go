@@ -34,7 +34,6 @@ func TestMain(m *testing.M) {
 	baseURL = fmt.Sprintf("http://localhost:%d", port)
 
 	cmd := exec.Command(bin)
-	cmd.Dir = ".."
 	cmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", port))
 	if err := cmd.Start(); err != nil {
 		os.Remove(bin)

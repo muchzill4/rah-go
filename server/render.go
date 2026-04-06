@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"embed"
 	"html/template"
 	"log"
 	"net/http"
@@ -9,6 +10,9 @@ import (
 
 	"github.com/muchzill4/rah-go/game"
 )
+
+//go:embed templates/*.html
+var templateFS embed.FS
 
 var funcMap = template.FuncMap{
 	"fillInBlank": func(cardText, answer string) template.HTML {
@@ -146,11 +150,11 @@ func drawnCardOrder(sess *game.Session) []string {
 	return ids
 }
 
-var templates *template.Template
-
 func init() {
-	templates = template.Must(template.New("").Funcs(funcMap).ParseGlob("templates/*.html"))
+	templates = template.Must(template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html"))
 }
+
+var templates *template.Template
 
 func (s *Server) render(w http.ResponseWriter, name string, data map[string]any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

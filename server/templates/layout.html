@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{if .Title}}{{.Title}}{{else}}Rah{{end}}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Rah">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="/static/rah.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="/" class="site-header__link">
+        <h1 class="site-header__title">Retros<br>Against<br>Humanity</h1>
+      </a>
+      {{if .HeaderRight}}
+        <div class="site-header__right">{{.HeaderRight}}</div>
+      {{end}}
+    </header>
+    {{.Content}}
+    <footer class="credits">
+      Inspired by
+      <a href="https://www.cardsagainsthumanity.com">Cards Against Humanity</a>
+      and
+      <a href="https://www.boxuk.com/insight/retros-against-humanity/">Box UK</a>
+    </footer>
+  </body>
+</html>
