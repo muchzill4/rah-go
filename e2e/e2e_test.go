@@ -13,13 +13,31 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/playwright-community/playwright-go"
 )
 
-var baseURL string
+var (
+	baseURL string
+	pw      *playwright.Playwright
+)
 
 func TestMain(m *testing.M) {
+	if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
+		fmt.Fprintf(os.Stderr, "playwright install failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	var err error
+	pw, err = playwright.Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "playwright start failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	bin, err := buildBinary()
 	if err != nil {
+		pw.Stop()
 		fmt.Fprintf(os.Stderr, "build failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -27,6 +45,7 @@ func TestMain(m *testing.M) {
 	port, err := freePort()
 	if err != nil {
 		os.Remove(bin)
+		pw.Stop()
 		fmt.Fprintf(os.Stderr, "no free port: %v\n", err)
 		os.Exit(1)
 	}
@@ -37,6 +56,7 @@ func TestMain(m *testing.M) {
 	cmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", port))
 	if err := cmd.Start(); err != nil {
 		os.Remove(bin)
+		pw.Stop()
 		fmt.Fprintf(os.Stderr, "start failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -45,6 +65,7 @@ func TestMain(m *testing.M) {
 		cmd.Process.Kill()
 		cmd.Wait()
 		os.Remove(bin)
+		pw.Stop()
 		fmt.Fprintf(os.Stderr, "server not ready: %v\n", err)
 		os.Exit(1)
 	}
@@ -54,6 +75,7 @@ func TestMain(m *testing.M) {
 	cmd.Process.Kill()
 	cmd.Wait()
 	os.Remove(bin)
+	pw.Stop()
 
 	os.Exit(code)
 }
