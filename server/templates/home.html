@@ -8,7 +8,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Retros Against Humanity</title>
   <link rel="stylesheet" href="/static/rah.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  <meta name="htmx-config" content='{"responseHandling": [{"code":"422", "swap": true},{"code":"204", "swap": false},{"code":"[23]..", "swap": true},{"code":"[45]..", "swap": false, "error":true},{"code":"...", "swap": false}]}'>
 </head>
 <body>
   <header class="site-header">
@@ -22,15 +24,7 @@
       <section class="card-panel">
         <h2 class="card-panel__title">Create a session</h2>
         <form method="POST" action="/sessions" class="form"
-          x-data="{
-            validateCards(e) {
-              const textarea = e.target.querySelector('textarea');
-              const lines = textarea.value.split('\n').filter(l => l.trim());
-              const valid = lines.some(l => l.includes('_') || l.includes('{blank}'));
-              if (!valid) { e.preventDefault(); alert('At least one card must contain _ or {blank}'); }
-            }
-          }"
-          @submit="validateCards($event)">
+          hx-post="/sessions" hx-target="#create-errors" hx-swap="innerHTML">
           <div class="form__field">
             <label for="host_name" class="form__label">Your name</label>
             <input type="text" id="host_name" name="host_name" placeholder="Enter your name" class="form__input" required>
@@ -44,6 +38,7 @@
             <p class="form__hint">One card per line. Use _ or {blank} for the blank.</p>
             <textarea id="cards" name="cards" class="form__input form__input--textarea" rows="10">{{.DefaultCards}}</textarea>
           </div>
+          <div id="create-errors"></div>
           <button type="submit" class="btn btn--primary">Create session</button>
         </form>
       </section>

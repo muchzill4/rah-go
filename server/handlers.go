@@ -18,10 +18,11 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	htmx := r.Header.Get("HX-Request") == "true"
 
 	hostName := strings.TrimSpace(r.FormValue("host_name"))
 	if hostName == "" {
-		http.Error(w, "name is required", http.StatusUnprocessableEntity)
+		formError(w, "name is required", htmx)
 		return
 	}
 
@@ -45,7 +46,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		cardTexts = append(cardTexts, normalized)
 	}
 	if len(cardTexts) == 0 {
-		http.Error(w, "at least one card with {blank} is required", http.StatusUnprocessableEntity)
+		formError(w, "at least one card with {blank} is required", htmx)
 		return
 	}
 
@@ -62,7 +63,22 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	http.Redirect(w, r, "/sessions/"+sess.Code, http.StatusSeeOther)
+	dest := "/sessions/" + sess.Code
+	if htmx {
+		w.Header().Set("HX-Redirect", dest)
+		return
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
+}
+
+func formError(w http.ResponseWriter, msg string, htmx bool) {
+	if htmx {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		fmt.Fprintf(w, `<p class="form__errors">%s</p>`, msg)
+		return
+	}
+	http.Error(w, msg, http.StatusUnprocessableEntity)
 }
 
 func (s *Server) handleShowSession(w http.ResponseWriter, r *http.Request) {
