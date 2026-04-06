@@ -25,14 +25,8 @@
           {{undrawnCount .Session}} cards remaining
         </span>
       </div>
-      <div class="session__participants">
-        <p class="session__participants-heading">Participants ({{len .Session.Participants}})</p>
-        {{range .Session.Participants}}
-          <div class="participant-badge {{if isCurrentParticipant $.Participant .}}participant-badge--you{{end}}">
-            <span>{{if .Host}}&#x1f451;{{else}}&#x1f9d1;{{end}}</span>
-            <span>{{.Name}}</span>
-          </div>
-        {{end}}
+      <div class="session__participants" id="participants">
+        {{template "participants.html" .}}
       </div>
     </div>
   </header>

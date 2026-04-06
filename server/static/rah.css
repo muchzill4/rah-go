@@ -307,6 +307,10 @@ body > .credits {
   margin-left: .25rem;
 }
 
+.participant-badge__status--pending {
+  opacity: .5;
+}
+
 .participant-badge--you {
   background: var(--off-white);
   border: 1px solid var(--border);

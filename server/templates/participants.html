@@ -1,0 +1,22 @@
+{{$sess := .Session}}
+{{$p := .Participant}}
+<p class="session__participants-heading">Participants ({{len $sess.Participants}})</p>
+{{range $sess.Participants}}
+  <div class="participant-badge {{if isCurrentParticipant $p .}}participant-badge--you{{end}}">
+    <span>{{if .Host}}&#x1f451;{{else}}&#x1f9d1;{{end}}</span>
+    <span>{{.Name}}</span>
+    {{if eq $sess.Status 1}}{{/* Submitting */}}
+      {{if hasSubmitted $sess .ID}}
+        <span class="participant-badge__status">&#x2705;</span>
+      {{else}}
+        <span class="participant-badge__status participant-badge__status--pending">&#x270f;&#xfe0f;</span>
+      {{end}}
+    {{else if eq $sess.Status 2}}{{/* Voting */}}
+      {{if hasVoted $sess .ID}}
+        <span class="participant-badge__status">&#x2705;</span>
+      {{else}}
+        <span class="participant-badge__status participant-badge__status--pending">&#x1f914;</span>
+      {{end}}
+    {{end}}
+  </div>
+{{end}}

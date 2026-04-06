@@ -352,11 +352,14 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) broadcastGameUpdate(sess *game.Session) {
 	for _, p := range sess.Participants {
-		html := s.renderPartial("game", map[string]any{
+		data := map[string]any{
 			"Session":     sess,
 			"Participant": &p,
-		})
-		s.broker.Send(p.ID, html)
+		}
+		game := s.renderPartial("game", data)
+		participants := s.renderPartial("participants", data)
+		oob := `<div id="participants" class="session__participants" hx-swap-oob="true">` + participants + `</div>`
+		s.broker.Send(p.ID, game+oob)
 	}
 }
 
