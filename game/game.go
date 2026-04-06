@@ -278,6 +278,18 @@ func CastVote(s Session, participantID string, submissionID string) (Session, er
 		SubmissionID:  submissionID,
 	})
 
+	if AllVoted(s) {
+		s.Status = Discussing
+		winner, _ := WinningSubmission(s)
+		if winner != nil {
+			for i := range s.Submissions {
+				if s.Submissions[i].ID == winner.ID {
+					s.Submissions[i].Winner = true
+				}
+			}
+		}
+	}
+
 	return s, nil
 }
 

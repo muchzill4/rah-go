@@ -260,11 +260,31 @@ func TestVoteOncePerParticipantPerRound(t *testing.T) {
 	}
 }
 
-func TestAdvanceToDiscussingClearWinner(t *testing.T) {
+func TestCastVoteAutoAdvancesWhenAllVoted(t *testing.T) {
 	s, host, bob, _, bobSub := sessionInVoting()
-	// Both vote for bob's submission
+
 	s, _ = CastVote(s, host.ID, bobSub.ID)
+	if s.Status != Voting {
+		t.Fatal("should still be voting after first vote")
+	}
+
 	s, _ = CastVote(s, bob.ID, bobSub.ID)
+	if s.Status != Discussing {
+		t.Fatalf("want auto-advance to Discussing, got %d", s.Status)
+	}
+
+	// Winner should be auto-marked
+	for _, sub := range s.Submissions {
+		if sub.ID == bobSub.ID && !sub.Winner {
+			t.Fatal("want winner auto-marked")
+		}
+	}
+}
+
+func TestAdvanceToDiscussingClearWinner(t *testing.T) {
+	s, host, _, _, bobSub := sessionInVoting()
+	// Only host votes — host force-advances
+	s, _ = CastVote(s, host.ID, bobSub.ID)
 
 	s, err := AdvanceToDiscussing(s, host.ID)
 	if err != nil {
@@ -285,7 +305,6 @@ func TestAdvanceToDiscussingClearWinner(t *testing.T) {
 		t.Fatalf("want no tie, got %d tied", len(tied))
 	}
 
-	// Winner submission should be marked
 	for _, sub := range s.Submissions {
 		if sub.ID == bobSub.ID && !sub.Winner {
 			t.Fatal("want winning submission marked as Winner")
@@ -295,11 +314,13 @@ func TestAdvanceToDiscussingClearWinner(t *testing.T) {
 
 func TestAdvanceToDiscussingTie(t *testing.T) {
 	s, host, bob, hostSub, bobSub := sessionInVoting()
-	// Each votes for the other's submission
+	// Each votes for the other — tie auto-advances
 	s, _ = CastVote(s, host.ID, bobSub.ID)
 	s, _ = CastVote(s, bob.ID, hostSub.ID)
 
-	s, _ = AdvanceToDiscussing(s, host.ID)
+	if s.Status != Discussing {
+		t.Fatalf("want auto-advance to Discussing on tie, got %d", s.Status)
+	}
 
 	winner, tied := WinningSubmission(s)
 	if winner != nil {
@@ -326,9 +347,9 @@ func TestAdvanceToDiscussingNoVotes(t *testing.T) {
 
 func TestPickWinner(t *testing.T) {
 	s, host, bob, hostSub, bobSub := sessionInVoting()
+	// Tie → auto-advances to discussing
 	s, _ = CastVote(s, host.ID, bobSub.ID)
 	s, _ = CastVote(s, bob.ID, hostSub.ID)
-	s, _ = AdvanceToDiscussing(s, host.ID)
 
 	s, err := PickWinner(s, host.ID, bobSub.ID)
 	if err != nil {
@@ -347,10 +368,10 @@ func TestPickWinner(t *testing.T) {
 }
 
 func TestPickWinnerRequiresHost(t *testing.T) {
-	s, host, bob, _, bobSub := sessionInVoting()
+	s, host, bob, hostSub, bobSub := sessionInVoting()
+	// Tie → auto-advances to discussing
 	s, _ = CastVote(s, host.ID, bobSub.ID)
-	s, _ = CastVote(s, bob.ID, bobSub.ID)
-	s, _ = AdvanceToDiscussing(s, host.ID)
+	s, _ = CastVote(s, bob.ID, hostSub.ID)
 
 	_, err := PickWinner(s, bob.ID, bobSub.ID)
 	if !errors.Is(err, ErrNotHost) {
