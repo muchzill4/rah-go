@@ -5,11 +5,11 @@
   <div class="panel panel--centered">
     <h2 class="panel__title">Waiting for everyone to join&hellip;</h2>
 
-    <div class="share-link" x-data="{ copied: false }">
-      <p class="share-link__url" x-data x-text="window.location.origin + '/sessions/' + '{{$sess.Code}}'"></p>
+    <div class="share-link">
+      <p class="share-link__url" id="share-url"></p>
+      <script>document.getElementById('share-url').textContent = window.location.origin + '/sessions/' + '{{$sess.Code}}';</script>
       <button class="btn btn--secondary btn--small"
-        @click="navigator.clipboard.writeText(window.location.href); copied = true; setTimeout(() => copied = false, 2000)"
-        x-text="copied ? '&#x2705; Copied!' : '&#x1f517; Copy link'"></button>
+        onclick="navigator.clipboard.writeText(window.location.href); this.textContent='&#x2705; Copied!'; setTimeout(() => this.textContent='&#x1f517; Copy link', 2000)">&#x1f517; Copy link</button>
     </div>
 
     <div class="participant-list-box">
@@ -45,44 +45,52 @@
       <div class="submitted-notice">&#x2705; Submitted</div>
     {{else}}
       {{$segments := cardSegments $sess.CurrentCard.Text}}
-      <form class="card-form" hx-post="/sessions/{{$sess.Code}}/submissions" hx-swap="none"
-        x-data="{
-          blanks: Array({{sub (len $segments) 1}}).fill(''),
-          get allFilled() { return this.blanks.every(b => b.trim() !== '') },
-          syncInputs() {
-            this.$el.querySelectorAll('.blank-input').forEach((el, i) => {
-              this.$el.querySelectorAll('input[name=text]')[i].value = el.textContent.trim();
-            });
-          }
-        }"
-        @submit="syncInputs()">
+      <form class="card-form" id="card-form" hx-post="/sessions/{{$sess.Code}}/submissions" hx-swap="none">
         <div class="prompt-card">
           <p class="prompt-card__text">{{range $i, $seg := $segments}}{{$seg}}{{if lt $i (sub (len $segments) 1)}}<span contenteditable="true" class="blank-input"
-              @input="blanks[{{$i}}] = $el.textContent.trim()"
-              @keydown.enter.prevent="if(allFilled) { syncInputs(); $el.closest('form').requestSubmit() }"
               {{if eq $i 0}}autofocus{{end}}></span><input type="hidden" name="text">{{end}}{{end}}</p>
         </div>
-        <button type="submit" class="btn btn--primary" :disabled="!allFilled">Submit</button>
+        <button type="submit" class="btn btn--primary">Submit</button>
       </form>
+      <script>
+        (function() {
+          var form = document.getElementById('card-form');
+          var blanks = form.querySelectorAll('.blank-input');
+          var inputs = form.querySelectorAll('input[name=text]');
+          function sync() {
+            blanks.forEach(function(el, i) { inputs[i].value = el.textContent.trim(); });
+          }
+          blanks.forEach(function(el) {
+            el.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') { e.preventDefault(); sync(); form.requestSubmit(); }
+            });
+          });
+          form.addEventListener('submit', function() { sync(); });
+        })();
+      </script>
     {{end}}
 
     <div class="phase-meta phase-meta--timer-only">
-      <div class="timer"
-        x-data="{
-          deadline: new Date('{{$sess.SubmissionDeadline.Format `2006-01-02T15:04:05Z07:00`}}'),
-          remaining: 0,
-          expired: false
-        }"
-        x-init="
-          let tick = () => {
-            remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-            expired = remaining <= 0;
-          };
-          tick();
-          setInterval(tick, 1000);
-        ">
-        <span :class="{ 'timer--expired': expired }"
-          x-text="expired ? '&#x23f0; Time\u0027s up!' : Math.floor(remaining/60) + ':' + String(remaining%60).padStart(2,'0')"></span>
+      <div class="timer">
+        <span id="timer-display"></span>
+        <script>
+          (function() {
+            var deadline = new Date('{{$sess.SubmissionDeadline.Format `2006-01-02T15:04:05Z07:00`}}');
+            var el = document.getElementById('timer-display');
+            function tick() {
+              var rem = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+              if (rem <= 0) {
+                el.className = 'timer--expired';
+                el.textContent = "⏰ Time's up!";
+              } else {
+                el.className = '';
+                el.textContent = Math.floor(rem/60) + ':' + String(rem%60).padStart(2,'0');
+              }
+            }
+            tick();
+            setInterval(tick, 1000);
+          })();
+        </script>
       </div>
     </div>
 
