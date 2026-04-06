@@ -70,6 +70,23 @@ func (s *Server) putSession(sess *game.Session) {
 	s.sessions[sess.Code] = sess
 }
 
+// lockSession acquires an exclusive lock and returns the session.
+// The caller must defer the returned unlock function.
+func (s *Server) lockSession(code string) (*game.Session, func(), bool) {
+	s.mu.Lock()
+	sess, ok := s.sessions[code]
+	if !ok {
+		s.mu.Unlock()
+		return nil, nil, false
+	}
+	return sess, s.mu.Unlock, true
+}
+
+// putSessionLocked stores the session. Caller must hold the lock from lockSession.
+func (s *Server) putSessionLocked(sess *game.Session) {
+	s.sessions[sess.Code] = sess
+}
+
 func (s *Server) cleanupLoop() {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()

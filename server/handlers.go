@@ -83,11 +83,12 @@ func (s *Server) handleShowSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
-	sess, ok := s.getSession(code)
+	sess, unlock, ok := s.lockSession(code)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
+	defer unlock()
 
 	r.ParseForm()
 	name := strings.TrimSpace(r.FormValue("name"))
@@ -101,7 +102,7 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("participant joined", "code", code, "name", name)
 
 	http.SetCookie(w, &http.Cookie{
@@ -118,17 +119,18 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDraw(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireHost(w, r)
+	sess, participant, unlock, ok := s.requireHost(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	updated, err := game.DrawCard(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("card drawn", "code", sess.Code, "remaining", len(updated.Cards)-len(updated.DrawnCardIDs))
 
 	s.broadcastGameUpdate(&updated)
@@ -136,10 +138,11 @@ func (s *Server) handleDraw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireParticipant(w, r)
+	sess, participant, unlock, ok := s.requireParticipant(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	r.ParseForm()
 
@@ -155,7 +158,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Debug("submission received", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
@@ -163,10 +166,11 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireHost(w, r)
+	sess, participant, unlock, ok := s.requireHost(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	var updated game.Session
 	var err error
@@ -186,7 +190,7 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("phase advanced", "code", sess.Code, "status", updated.Status)
 
 	s.broadcastGameUpdate(&updated)
@@ -194,10 +198,11 @@ func (s *Server) handleAdvance(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireParticipant(w, r)
+	sess, participant, unlock, ok := s.requireParticipant(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	r.ParseForm()
 	submissionID := r.FormValue("submission_id")
@@ -207,7 +212,7 @@ func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Debug("vote cast", "code", sess.Code, "participant", participant.Name)
 
 	s.broadcastGameUpdate(&updated)
@@ -215,10 +220,11 @@ func (s *Server) handleVote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireHost(w, r)
+	sess, participant, unlock, ok := s.requireHost(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	r.ParseForm()
 	submissionID := r.FormValue("submission_id")
@@ -228,7 +234,7 @@ func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("winner picked", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -236,17 +242,18 @@ func (s *Server) handlePickWinner(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSkip(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireHost(w, r)
+	sess, participant, unlock, ok := s.requireHost(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	updated, err := game.SkipCard(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("card skipped", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -254,17 +261,18 @@ func (s *Server) handleSkip(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
-	sess, participant, ok := s.requireHost(w, r)
+	sess, participant, unlock, ok := s.requireHost(w, r)
 	if !ok {
 		return
 	}
+	defer unlock()
 
 	updated, err := game.Finish(sess.Clone(), participant.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return
 	}
-	s.putSession(&updated)
+	s.putSessionLocked(&updated)
 	slog.Info("session finished", "code", sess.Code)
 
 	s.broadcastGameUpdate(&updated)
@@ -327,33 +335,35 @@ func (s *Server) broadcastGameUpdate(sess *game.Session) {
 	}
 }
 
-func (s *Server) requireParticipant(w http.ResponseWriter, r *http.Request) (*game.Session, *game.Participant, bool) {
+func (s *Server) requireParticipant(w http.ResponseWriter, r *http.Request) (*game.Session, *game.Participant, func(), bool) {
 	code := r.PathValue("code")
-	sess, ok := s.getSession(code)
+	sess, unlock, ok := s.lockSession(code)
 	if !ok {
 		http.NotFound(w, r)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
 	participant := s.participantFromCookie(r, sess)
 	if participant == nil {
+		unlock()
 		http.Error(w, "not a participant", http.StatusForbidden)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
-	return sess, participant, true
+	return sess, participant, unlock, true
 }
 
-func (s *Server) requireHost(w http.ResponseWriter, r *http.Request) (*game.Session, *game.Participant, bool) {
-	sess, participant, ok := s.requireParticipant(w, r)
+func (s *Server) requireHost(w http.ResponseWriter, r *http.Request) (*game.Session, *game.Participant, func(), bool) {
+	sess, participant, unlock, ok := s.requireParticipant(w, r)
 	if !ok {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
 	if !participant.Host {
+		unlock()
 		http.Error(w, "not the host", http.StatusForbidden)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
-	return sess, participant, true
+	return sess, participant, unlock, true
 }
