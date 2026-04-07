@@ -248,7 +248,7 @@ func AdvanceToDiscussing(s Session, participantID string) (Session, error) {
 // If there's a tie: winner is nil, tied contains the tied submissions.
 // If no votes: both are nil/empty.
 func WinningSubmission(s Session) (*Submission, []Submission) {
-	currentSubs := currentSubmissions(s)
+	currentSubs := s.CurrentSubmissions()
 	if len(currentSubs) == 0 {
 		return nil, nil
 	}
@@ -352,7 +352,10 @@ func undrawnCards(s Session) []Card {
 	return cards
 }
 
-func currentSubmissions(s Session) []Submission {
+func (s Session) CurrentSubmissions() []Submission {
+	if s.CurrentCard == nil {
+		return nil
+	}
 	var subs []Submission
 	for _, sub := range s.Submissions {
 		if sub.CardID == s.CurrentCard.ID {
@@ -360,6 +363,125 @@ func currentSubmissions(s Session) []Submission {
 		}
 	}
 	return subs
+}
+
+func (s Session) SubmissionFor(participantID string) *Submission {
+	if s.CurrentCard == nil {
+		return nil
+	}
+	for i, sub := range s.Submissions {
+		if sub.CardID == s.CurrentCard.ID && sub.ParticipantID == participantID {
+			return &s.Submissions[i]
+		}
+	}
+	return nil
+}
+
+func (s Session) HasSubmitted(participantID string) bool {
+	return s.SubmissionFor(participantID) != nil
+}
+
+func (s Session) SubmittedCount() int {
+	if s.CurrentCard == nil {
+		return 0
+	}
+	seen := map[string]bool{}
+	for _, sub := range s.Submissions {
+		if sub.CardID == s.CurrentCard.ID {
+			seen[sub.ParticipantID] = true
+		}
+	}
+	return len(seen)
+}
+
+func (s Session) HasVoted(participantID string) bool {
+	return s.VotedFor(participantID) != ""
+}
+
+func (s Session) VotedFor(participantID string) string {
+	if s.CurrentCard == nil {
+		return ""
+	}
+	for _, v := range s.Votes {
+		if v.ParticipantID == participantID && hasVotedThisRound(s, v) {
+			return v.SubmissionID
+		}
+	}
+	return ""
+}
+
+func (s Session) VotedCount() int {
+	if s.CurrentCard == nil {
+		return 0
+	}
+	seen := map[string]bool{}
+	for _, v := range s.Votes {
+		if hasVotedThisRound(s, v) {
+			seen[v.ParticipantID] = true
+		}
+	}
+	return len(seen)
+}
+
+func (s Session) VoteCount(submissionID string) int {
+	count := 0
+	for _, v := range s.Votes {
+		if v.SubmissionID == submissionID {
+			count++
+		}
+	}
+	return count
+}
+
+func (s Session) ParticipantName(participantID string) string {
+	for _, p := range s.Participants {
+		if p.ID == participantID {
+			return p.Name
+		}
+	}
+	return ""
+}
+
+func (s Session) Winner() *Submission {
+	winner, _ := WinningSubmission(s)
+	return winner
+}
+
+func (s Session) TiedSubmissions() []Submission {
+	_, tied := WinningSubmission(s)
+	return tied
+}
+
+func (s Session) UndrawnCount() int {
+	return len(s.Cards) - len(s.DrawnCardIDs)
+}
+
+func (s Session) DrawnCards() []Card {
+	var cards []Card
+	for _, c := range s.Cards {
+		if s.DrawnCardIDs[c.ID] {
+			cards = append(cards, c)
+		}
+	}
+	return cards
+}
+
+func (s Session) WinnerForCard(cardID string) *Submission {
+	for i, sub := range s.Submissions {
+		if sub.CardID == cardID && sub.Winner {
+			return &s.Submissions[i]
+		}
+	}
+	return nil
+}
+
+func (s Session) HasSubmissionsForCard(cardID string) bool {
+	for _, sub := range s.Submissions {
+		if sub.CardID == cardID {
+			return true
+		}
+	}
+	return false
 }
 
 func hasVotedThisRound(s Session, v Vote) bool {

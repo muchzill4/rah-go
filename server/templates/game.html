@@ -37,7 +37,7 @@
 
 {{else if eq $sess.Status 1}}{{/* Submitting */}}
   <div class="panel">
-    {{$mySub := mySubmission $sess $p.ID}}
+    {{$mySub := $sess.SubmissionFor $p.ID}}
     {{if $mySub}}
       <div class="prompt-card">
         <p class="prompt-card__text">{{fillInBlank $sess.CurrentCard.Text $mySub.Text}}</p>
@@ -110,15 +110,15 @@
     <h1 class="panel__heading-primary">Time to vote</h1>
     <h2 class="panel__heading-secondary">Vote for your favourite card</h2>
 
-    {{$votedFor := votedFor $sess $p.ID}}
+    {{$votedFor := $sess.VotedFor $p.ID}}
     <div class="card-gallery">
-      {{range currentSubmissions $sess}}
+      {{range $sess.CurrentSubmissions}}
         <div class="card-gallery__item">
           <div class="prompt-card prompt-card--sm {{if eq .ID $votedFor}}prompt-card--voted{{end}}">
             <p class="prompt-card__text">{{fillInBlank $sess.CurrentCard.Text .Text}}</p>
-            <p class="prompt-card__author">{{voteCount $sess .ID}} vote{{if ne (voteCount $sess .ID) 1}}s{{end}}</p>
+            <p class="prompt-card__author">{{$sess.VoteCount .ID}} vote{{if ne ($sess.VoteCount .ID) 1}}s{{end}}</p>
           </div>
-          {{if not (hasVoted $sess $p.ID)}}
+          {{if not ($sess.HasVoted $p.ID)}}
             <button class="btn btn--secondary btn--small"
               hx-post="/sessions/{{$sess.Code}}/votes" hx-vals='{"submission_id":"{{.ID}}"}' hx-swap="none">Vote</button>
           {{end}}
@@ -136,8 +136,8 @@
 
 {{else if eq $sess.Status 3}}{{/* Discussing */}}
   <div class="panel">
-    {{$winner := winningSubmission $sess}}
-    {{$tied := tiedSubmissions $sess}}
+    {{$winner := $sess.Winner}}
+    {{$tied := $sess.TiedSubmissions}}
 
     {{if $winner}}
       <h1 class="panel__heading-primary">Discussion time</h1>
@@ -145,7 +145,7 @@
 
       <div class="prompt-card">
         <p class="prompt-card__text">{{fillInBlank $sess.CurrentCard.Text $winner.Text}}</p>
-        <p class="prompt-card__author">&mdash; {{participantName $sess $winner.ParticipantID}} &#x1f3c6;</p>
+        <p class="prompt-card__author">&mdash; {{$sess.ParticipantName $winner.ParticipantID}} &#x1f3c6;</p>
       </div>
     {{else if $tied}}
       <p class="panel__title">It's a tie! &#x1f91d;</p>
@@ -160,7 +160,7 @@
           <div class="card-gallery__item">
             <div class="prompt-card prompt-card--sm">
               <p class="prompt-card__text">{{fillInBlank $sess.CurrentCard.Text .Text}}</p>
-              <p class="prompt-card__author">&mdash; {{participantName $sess .ParticipantID}} &middot; {{voteCount $sess .ID}} vote{{if ne (voteCount $sess .ID) 1}}s{{end}}</p>
+              <p class="prompt-card__author">&mdash; {{$sess.ParticipantName .ParticipantID}} &middot; {{$sess.VoteCount .ID}} vote{{if ne ($sess.VoteCount .ID) 1}}s{{end}}</p>
             </div>
             {{if $p.Host}}
               <button class="btn btn--secondary btn--small"
@@ -179,7 +179,7 @@
     {{if $p.Host}}
       {{if or $winner (not $tied)}}
         <div class="host-actions">
-          {{if gt (undrawnCount $sess) 0}}
+          {{if gt ($sess.UndrawnCount) 0}}
             <button class="btn btn--primary"
               hx-post="/sessions/{{$sess.Code}}/draw" hx-swap="none">Draw next card &#x1f3b2;</button>
           {{else}}
@@ -197,13 +197,13 @@
     <h2 class="panel__heading-secondary">Winning cards from each round</h2>
 
     <div class="card-gallery">
-      {{range drawnCards $sess}}
-        {{$w := winnerForCard $sess .ID}}
+      {{range $sess.DrawnCards}}
+        {{$w := $sess.WinnerForCard .ID}}
         <div class="prompt-card prompt-card--sm">
           {{if $w}}
             <p class="prompt-card__text">{{fillInBlank .Text $w.Text}}</p>
-            <p class="prompt-card__author">&mdash; {{participantName $sess $w.ParticipantID}}</p>
-          {{else if hasSubmissions $sess .ID}}
+            <p class="prompt-card__author">&mdash; {{$sess.ParticipantName $w.ParticipantID}}</p>
+          {{else if $sess.HasSubmissionsForCard .ID}}
             <p class="prompt-card__text prompt-card__text--muted">{{.Text}}</p>
             <p class="prompt-card__author">No winner selected</p>
           {{else}}

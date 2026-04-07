@@ -439,6 +439,238 @@ func TestAllSubmitted(t *testing.T) {
 	}
 }
 
+func TestSubmissionFor(t *testing.T) {
+	s, host, bob := sessionInSubmitting()
+
+	if s.SubmissionFor(bob.ID) != nil {
+		t.Fatal("want nil before submission")
+	}
+
+	s, _ = Submit(s, bob.ID, "bob answer")
+	sub := s.SubmissionFor(bob.ID)
+	if sub == nil {
+		t.Fatal("want submission")
+	}
+	if sub.Text != "bob answer" {
+		t.Fatalf("want text %q, got %q", "bob answer", sub.Text)
+	}
+	if s.SubmissionFor(host.ID) != nil {
+		t.Fatal("want nil for participant who hasn't submitted")
+	}
+}
+
+func TestHasSubmitted(t *testing.T) {
+	s, _, bob := sessionInSubmitting()
+
+	if s.HasSubmitted(bob.ID) {
+		t.Fatal("want false before submission")
+	}
+
+	s, _ = Submit(s, bob.ID, "answer")
+	if !s.HasSubmitted(bob.ID) {
+		t.Fatal("want true after submission")
+	}
+}
+
+func TestSubmittedCount(t *testing.T) {
+	s, host, bob := sessionInSubmitting()
+
+	if got := s.SubmittedCount(); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+
+	s, _ = Submit(s, bob.ID, "b")
+	if got := s.SubmittedCount(); got != 1 {
+		t.Fatalf("want 1, got %d", got)
+	}
+
+	s, _ = Submit(s, host.ID, "a")
+	if got := s.SubmittedCount(); got != 2 {
+		t.Fatalf("want 2, got %d", got)
+	}
+}
+
+func TestCurrentSubmissions(t *testing.T) {
+	s, host, bob := sessionInSubmitting()
+
+	if got := s.CurrentSubmissions(); len(got) != 0 {
+		t.Fatalf("want 0, got %d", len(got))
+	}
+
+	s, _ = Submit(s, host.ID, "a")
+	s, _ = Submit(s, bob.ID, "b")
+	subs := s.CurrentSubmissions()
+	if len(subs) != 2 {
+		t.Fatalf("want 2, got %d", len(subs))
+	}
+}
+
+func TestVotedFor(t *testing.T) {
+	s, host, _, _, bobSub := sessionInVoting()
+
+	if s.VotedFor(host.ID) != "" {
+		t.Fatal("want empty before voting")
+	}
+
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	if got := s.VotedFor(host.ID); got != bobSub.ID {
+		t.Fatalf("want %s, got %s", bobSub.ID, got)
+	}
+}
+
+func TestHasVoted(t *testing.T) {
+	s, host, _, _, bobSub := sessionInVoting()
+
+	if s.HasVoted(host.ID) {
+		t.Fatal("want false before voting")
+	}
+
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	if !s.HasVoted(host.ID) {
+		t.Fatal("want true after voting")
+	}
+}
+
+func TestVotedCount(t *testing.T) {
+	s, host, bob, _, bobSub := sessionInVoting()
+
+	if got := s.VotedCount(); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	if got := s.VotedCount(); got != 1 {
+		t.Fatalf("want 1, got %d", got)
+	}
+
+	s, _ = CastVote(s, bob.ID, bobSub.ID)
+	if got := s.VotedCount(); got != 2 {
+		t.Fatalf("want 2, got %d", got)
+	}
+}
+
+func TestVoteCount(t *testing.T) {
+	s, host, bob, hostSub, bobSub := sessionInVoting()
+
+	if got := s.VoteCount(bobSub.ID); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	s, _ = CastVote(s, bob.ID, hostSub.ID)
+	if got := s.VoteCount(bobSub.ID); got != 1 {
+		t.Fatalf("want 1, got %d", got)
+	}
+}
+
+func TestParticipantName(t *testing.T) {
+	s, host, bob := sessionInSubmitting()
+
+	if got := s.ParticipantName(host.ID); got != "Alice" {
+		t.Fatalf("want Alice, got %q", got)
+	}
+	if got := s.ParticipantName(bob.ID); got != "Bob" {
+		t.Fatalf("want Bob, got %q", got)
+	}
+	if got := s.ParticipantName("nonexistent"); got != "" {
+		t.Fatalf("want empty, got %q", got)
+	}
+}
+
+func TestUndrawnCount(t *testing.T) {
+	s, host := testSession()
+
+	if got := s.UndrawnCount(); got != 2 {
+		t.Fatalf("want 2, got %d", got)
+	}
+
+	s, _ = DrawCard(s, host.ID)
+	if got := s.UndrawnCount(); got != 1 {
+		t.Fatalf("want 1, got %d", got)
+	}
+}
+
+func TestDrawnCards(t *testing.T) {
+	s, host := testSession()
+
+	if got := s.DrawnCards(); len(got) != 0 {
+		t.Fatalf("want 0, got %d", len(got))
+	}
+
+	s, _ = DrawCard(s, host.ID)
+	drawn := s.DrawnCards()
+	if len(drawn) != 1 {
+		t.Fatalf("want 1, got %d", len(drawn))
+	}
+	if drawn[0].ID != s.CurrentCard.ID {
+		t.Fatalf("want %s, got %s", s.CurrentCard.ID, drawn[0].ID)
+	}
+}
+
+func TestWinnerForCard(t *testing.T) {
+	s, host, bob, _, bobSub := sessionInVoting()
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	s, _ = CastVote(s, bob.ID, bobSub.ID)
+
+	w := s.WinnerForCard(s.CurrentCard.ID)
+	if w == nil {
+		t.Fatal("want winner")
+	}
+	if w.ID != bobSub.ID {
+		t.Fatalf("want %s, got %s", bobSub.ID, w.ID)
+	}
+	if s.WinnerForCard("nonexistent") != nil {
+		t.Fatal("want nil for unknown card")
+	}
+}
+
+func TestHasSubmissionsForCard(t *testing.T) {
+	s, _, bob := sessionInSubmitting()
+	cardID := s.CurrentCard.ID
+
+	if s.HasSubmissionsForCard(cardID) {
+		t.Fatal("want false before submissions")
+	}
+
+	s, _ = Submit(s, bob.ID, "answer")
+	if !s.HasSubmissionsForCard(cardID) {
+		t.Fatal("want true after submission")
+	}
+}
+
+func TestWinnerAndTiedSubmissions(t *testing.T) {
+	s, host, bob, hostSub, bobSub := sessionInVoting()
+
+	// No votes — no winner, no ties
+	if s.Winner() != nil {
+		t.Fatal("want nil winner with no votes")
+	}
+	if len(s.TiedSubmissions()) != 0 {
+		t.Fatal("want no tied submissions with no votes")
+	}
+
+	// Clear winner
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	s, _ = CastVote(s, bob.ID, bobSub.ID)
+	if w := s.Winner(); w == nil || w.ID != bobSub.ID {
+		t.Fatalf("want winner %s", bobSub.ID)
+	}
+	if len(s.TiedSubmissions()) != 0 {
+		t.Fatal("want no tied submissions with clear winner")
+	}
+
+	// Tie — reset votes
+	s2, _, _, _, _ := sessionInVoting()
+	s2, _ = CastVote(s2, host.ID, bobSub.ID)
+	s2, _ = CastVote(s2, bob.ID, hostSub.ID)
+	if s2.Winner() != nil {
+		t.Fatal("want nil winner on tie")
+	}
+	if len(s2.TiedSubmissions()) != 2 {
+		t.Fatalf("want 2 tied, got %d", len(s2.TiedSubmissions()))
+	}
+}
+
 func TestAllVoted(t *testing.T) {
 	s, host, bob, _, bobSub := sessionInVoting()
 
