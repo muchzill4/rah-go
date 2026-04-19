@@ -41,6 +41,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
 	s.mux.HandleFunc("GET /sessions/{code}", s.handleShowSession)
 	s.mux.HandleFunc("POST /sessions/{code}/participants", s.handleJoin)
+	s.mux.HandleFunc("POST /sessions/{code}/leave", s.handleLeave)
 	s.mux.HandleFunc("POST /sessions/{code}/draw", s.handleDraw)
 	s.mux.HandleFunc("POST /sessions/{code}/submissions", s.handleSubmit)
 	s.mux.HandleFunc("POST /sessions/{code}/advance", s.handleAdvance)

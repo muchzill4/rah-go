@@ -39,6 +39,13 @@ func (b *Broker) Unsubscribe(participantID string, ch chan string) {
 	}
 }
 
+func (b *Broker) IsConnected(participantID string) bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	_, ok := b.clients[participantID]
+	return ok
+}
+
 func (b *Broker) Send(participantID string, data string) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

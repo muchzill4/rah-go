@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/muchzill4/rah-go/game"
 )
@@ -304,6 +305,39 @@ func (s *Server) handleFinish(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) handleLeave(w http.ResponseWriter, r *http.Request) {
+	sess, participant, unlock, ok := s.requireParticipant(w, r)
+	if !ok {
+		return
+	}
+	defer unlock()
+
+	updated, err := game.Leave(sess.Clone(), participant.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	s.store.PutLocked(&updated)
+	slog.Info("participant left", "code", sess.Code, "name", participant.Name)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "participant_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	s.broadcastGameUpdate(&updated)
+
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", "/")
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 	sess, ok := s.store.Get(code)
@@ -328,13 +362,17 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	ch := s.broker.Subscribe(participant.ID)
-	defer s.broker.Unsubscribe(participant.ID, ch)
-	slog.Debug("sse connected", "code", code, "participant", participant.Name)
+	participantID := participant.ID
+	participantName := participant.Name
+
+	ch := s.broker.Subscribe(participantID)
+	defer s.broker.Unsubscribe(participantID, ch)
+	slog.Debug("sse connected", "code", code, "participant", participantName)
 
 	for {
 		select {
 		case <-r.Context().Done():
+			go s.disconnectAfterGrace(code, participantID, participantName)
 			return
 		case msg, ok := <-ch:
 			if !ok {
@@ -348,6 +386,33 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+func (s *Server) disconnectAfterGrace(code, participantID, participantName string) {
+	time.Sleep(10 * time.Second)
+
+	if s.broker.IsConnected(participantID) {
+		return
+	}
+
+	sess, unlock, ok := s.store.Lock(code)
+	if !ok {
+		return
+	}
+	defer unlock()
+
+	if sess.Status == game.Finished {
+		return
+	}
+
+	updated, err := game.Leave(sess.Clone(), participantID)
+	if err != nil {
+		return
+	}
+	s.store.PutLocked(&updated)
+	slog.Info("participant auto-disconnected", "code", code, "name", participantName)
+
+	s.broadcastGameUpdate(&updated)
 }
 
 func (s *Server) broadcastGameUpdate(sess *game.Session) {

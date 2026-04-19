@@ -28,6 +28,11 @@
       <div class="session__participants" id="participants">
         {{template "participants.html" .}}
       </div>
+      {{if and .Participant (ne .Session.Status 4)}}
+        <button class="btn btn--secondary btn--small"
+          hx-post="/sessions/{{.Session.Code}}/leave" hx-swap="none"
+          hx-confirm="Leave this session?">Leave</button>
+      {{end}}
     </div>
   </header>
 

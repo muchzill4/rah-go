@@ -13,6 +13,7 @@ import (
 var (
 	ErrWrongStatus      = errors.New("wrong session status")
 	ErrNotHost          = errors.New("not the host")
+	ErrNotInSession     = errors.New("not in session")
 	ErrAlreadySubmitted = errors.New("already submitted for this card")
 	ErrAlreadyVoted     = errors.New("already voted this round")
 )
@@ -124,6 +125,32 @@ func Join(s Session, name string) (Session, Participant, error) {
 	s.Participants = append(s.Participants, p)
 
 	return s, p, nil
+}
+
+func Leave(s Session, participantID string) (Session, error) {
+	if s.Status == Finished {
+		return s, ErrWrongStatus
+	}
+
+	idx := -1
+	for i, p := range s.Participants {
+		if p.ID == participantID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return s, ErrNotInSession
+	}
+
+	wasHost := s.Participants[idx].Host
+	s.Participants = append(s.Participants[:idx], s.Participants[idx+1:]...)
+
+	if wasHost && len(s.Participants) > 0 {
+		s.Participants[0].Host = true
+	}
+
+	return s, nil
 }
 
 func DrawCard(s Session, participantID string) (Session, error) {

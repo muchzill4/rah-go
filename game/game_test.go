@@ -76,6 +76,71 @@ func TestJoinRequiresLobby(t *testing.T) {
 	}
 }
 
+func TestLeave(t *testing.T) {
+	s, _, bob := sessionInSubmitting()
+
+	s, err := Leave(s, bob.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(s.Participants) != 1 {
+		t.Fatalf("want 1 participant, got %d", len(s.Participants))
+	}
+}
+
+func TestLeaveNotInSession(t *testing.T) {
+	s, _ := testSession()
+
+	_, err := Leave(s, "nonexistent")
+	if !errors.Is(err, ErrNotInSession) {
+		t.Fatalf("want ErrNotInSession, got %v", err)
+	}
+}
+
+func TestLeaveHostPromotesNext(t *testing.T) {
+	s, host := testSession()
+	s, bob, _ := Join(s, "Bob")
+	s, _, _ = Join(s, "Charlie")
+
+	s, err := Leave(s, host.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(s.Participants) != 2 {
+		t.Fatalf("want 2 participants, got %d", len(s.Participants))
+	}
+	if !s.Participants[0].Host {
+		t.Fatal("want first remaining participant to be host")
+	}
+	if s.Participants[0].ID != bob.ID {
+		t.Fatalf("want Bob as new host, got %s", s.Participants[0].Name)
+	}
+}
+
+func TestLeaveFinishedNotAllowed(t *testing.T) {
+	s, _, bob := sessionInSubmitting()
+	s.Status = Finished
+
+	_, err := Leave(s, bob.ID)
+	if !errors.Is(err, ErrWrongStatus) {
+		t.Fatalf("want ErrWrongStatus, got %v", err)
+	}
+}
+
+func TestLeaveDuringVotingFixesCounts(t *testing.T) {
+	s, host, bob, _, bobSub := sessionInVoting()
+
+	s, _ = CastVote(s, host.ID, bobSub.ID)
+	if AllVoted(s) {
+		t.Fatal("want false when only one voted")
+	}
+
+	s, _ = Leave(s, bob.ID)
+	if !AllVoted(s) {
+		t.Fatal("want true after non-voter leaves")
+	}
+}
+
 func TestDrawCard(t *testing.T) {
 	s, host := testSession()
 
